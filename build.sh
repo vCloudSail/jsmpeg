@@ -31,6 +31,8 @@
 
 EMSCRIPTEN_LIB=$EMSDK/fastcomp/emscripten/system/lib
 
+rm -rf dist
+
 emcc \
 	src/wasm/mpeg1.c \
 	src/wasm/mp2.c \
@@ -79,35 +81,13 @@ emcc \
 	-o jsmpeg.wasm
 
 
-# Concat all .js sources
-cat \
-	src/jsmpeg.js \
-	src/video-element.js \
-	src/player.js \
-	src/buffer.js \
-	src/ajax.js \
-	src/fetch.js \
-	src/ajax-progressive.js \
-	src/websocket.js \
-	src/ts.js \
-	src/decoder.js \
-	src/mpeg1.js \
-	src/mpeg1-wasm.js \
-	src/mp2.js \
-	src/mp2-wasm.js \
-	src/webgl.js \
-	src/canvas2d.js \
-	src/webaudio.js \
-	src/wasm-module.js \
-	> jsmpeg.js
-
 # Append the .wasm module to the .js source as base64 string
 echo "JSMpeg.WASM_BINARY_INLINED='$(base64 -w 0 jsmpeg.wasm)';" \
 	>> jsmpeg.js
 
 
 # Minify
-uglifyjs jsmpeg.js -o jsmpeg.min.js
+uglifyjs jsmpeg.js -o dist/jsmpeg.min.js
 
 # Cleanup
 rm jsmpeg.js

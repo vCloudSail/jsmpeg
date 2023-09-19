@@ -1,0 +1,72 @@
+{
+  "name": "jsmpeg",
+  "version": "1.0.0",
+  "description": "MPEG1 Video & MP2 Audio Decoder in JavaScript",
+  "license": "MIT",
+  "main": "dist/jsmpeg.min.js",
+  "private": false,
+  "author": "云帆 <cloudsail.studio@outlook.com>",
+  "repository": {
+    "type": "git",
+    "url": "https://github.com/vCloudSail/jsmpeg"
+  },
+  "bugs": {
+    "url": "https://github.com/vCloudSail/jsmpeg/issues"
+  },
+  "scripts": {
+    "dev": "vue-cli-service serve",
+    "dev:full": "npm run simple-server && vue-cli-service serve",
+    "demo": "vite build",
+    "build": "vite build",
+    "build:sh": "node ./build.sh",
+    "server": "cd server && call start.bat",
+    "clear": "rimraf .eslintcache && rimraf package-lock.json && rimraf yarn.lock && rimraf pnpm-lock.yaml && rimraf node_modules",
+    "reinstall": "npm run clear && yarn",
+    "prepublishOnly": "npm run build"
+  },
+  "publishConfig": {
+    "registry": "https://registry.npmjs.org"
+  },
+  "dependencies": {
+    "core-js": "^3.24.1"
+  },
+  "devDependencies": {
+    "@rollup/plugin-commonjs": "^25.0.4",
+    "@rollup/plugin-node-resolve": "^15.2.0",
+    "prettier": "^2.7.1",
+    "rimraf": "^5.0.1",
+    "rollup-plugin-visualizer": "^5.9.2",
+    "vite": "^4.4.9",
+    "vite-plugin-require-transform": "^1.0.21"
+  },
+  "peerDependencies": {
+    "core-js": "^3.0.0"
+  },
+  "browserslist": [
+    "> 1%",
+    "last 2 versions",
+    "not dead"
+  ],
+  "keywords": [
+    "rtsp",
+    "jsmpeg",
+    "ffmpeg",
+    "html5",
+    "websocket",
+    "mpeg1",
+    "mp2"
+  ],
+  "engines": {
+    "node": ">= 4.0.0",
+    "npm": ">= 3.0.0"
+  },
+  "gitHooks": {
+    "pre-commit": "lint-staged"
+  },
+  "lint-staged": {
+    "*.{js,jsx,vue,css}": [
+      "prettier --config .prettierrc.js --write",
+      "git add"
+    ]
+  }
+}
