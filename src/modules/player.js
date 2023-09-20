@@ -324,9 +324,9 @@ export default class Player {
    * 视频录制
    * @author cloudsail
    * @param {string} name
-   * @param {'ws'|'canvas'} mode
+   * @param {'auto'|'canvas'} mode
    */
-  startRecording(mode = 'ws') {
+  startRecording(mode = 'auto') {
     if (!this.isPlaying) {
       console.warn('[JSMpegPlayer] 播放器没有播放源，无法录屏')
       return

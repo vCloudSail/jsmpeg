@@ -60,7 +60,7 @@ export default class Recorder {
    *
    * @param {object} param
    * @param {HTMLCanvasElement} param.canvas
-   * @param {string} param.mode
+   * @param {'canvas'|'ws'|'auto'} param.mode
    * @param {any} param.source
    * @param {any} param.eventBus
    */
@@ -74,7 +74,7 @@ export default class Recorder {
     this.source = source
     this.eventBus = eventBus
 
-    if (mode === 'auto') {
+    if (mode === 'auto' || !mode) {
       this.mode = 'ws'
     } else {
       this.mode = mode
