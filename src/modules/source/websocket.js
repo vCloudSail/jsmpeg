@@ -140,6 +140,7 @@ export default class WSSource {
       if (this.socket == null) {
         this.start()
       } else if (this.socket?.readyState === WebSocket.OPEN) {
+        this.reconnectCount = 0
         this.socket.onmessage = this.onMessage.bind(this)
         this.startStreamTimeoutTimer()
       }
