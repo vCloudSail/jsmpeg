@@ -2,12 +2,18 @@
 
 import TS from '../demuxer/ts'
 
+const defaultOptions = {
+  // 表示多久没收到视频流
+  streamInterruptTimeout: 5000,
+  maxReconnectCount: 10
+}
 export default class WSSource {
   timer = {
     heartbeat: null,
     streamInterrupt: null
   }
   reconnectInterval
+  /** 是否需要自动尝试重连，reconnectInterval需要大于0 */
   shouldAttemptReconnect
   progress = 0
   reconnectTimeoutId = 0
@@ -42,7 +48,9 @@ export default class WSSource {
     this.options = options
 
     this.reconnectInterval =
-      options.reconnectInterval !== undefined ? options.reconnectInterval : 5
+      typeof options.reconnectInterval === 'number'
+        ? options.reconnectInterval
+        : 5
     this.shouldAttemptReconnect = !!this.reconnectInterval
 
     this.eventBus = options.eventBus
@@ -73,11 +81,13 @@ export default class WSSource {
     }
   }
 
+  /** 重新加载 */
   reload() {
     this.destroy()
     this.start()
   }
 
+  /** 销毁 */
   destroy() {
     clearTimeout(this.reconnectTimeoutId)
     this.reconnectTimeoutId = 0
@@ -93,6 +103,7 @@ export default class WSSource {
     }
   }
 
+  /** 启动连接 */
   start() {
     this.reconnectTimeoutId = 0
     this.reconnectCount = 0
@@ -104,6 +115,7 @@ export default class WSSource {
     this.wsConnect()
   }
 
+  /** 连接服务端 */
   wsConnect() {
     if (!this.url) return
     // 连java的websocket时，第二个参数要么传值，要么不传值，不能传null，否则会一直出现连接失败的问题
@@ -167,17 +179,24 @@ export default class WSSource {
     this.established = false
     if (this.progress >= 1) {
       // progress>=1，表示已经建立连接后的断开
+      // 这时可能是由于部分异常导致的断联，需要重新启动
       this.progress = 0
       if (this.onClosedCallback) {
         this.onClosedCallback(this)
         this.eventBus?.emit('source-closed', this)
       }
       clearTimeout(this.reconnectTimeoutId)
-      this.reconnectTimeoutId = setTimeout(this.start.bind(this), 5000)
+      this.reconnectTimeoutId = setTimeout(
+        this.start.bind(this),
+        this.reconnectInterval * 1000
+      )
       return
     }
 
-    if (this.shouldAttemptReconnect && this.reconnectCount < 10) {
+    if (
+      this.shouldAttemptReconnect &&
+      this.reconnectCount < defaultOptions.maxReconnectCount
+    ) {
       // 最多重连10次
       clearTimeout(this.reconnectTimeoutId)
       this.reconnectTimeoutId = setTimeout(
@@ -239,6 +258,6 @@ export default class WSSource {
         this.onStreamInterruptCallback()
         this.eventBus?.emit('source-interrupt', this)
       }
-    }, 5000)
+    }, defaultOptions.streamInterruptTimeout)
   }
 }

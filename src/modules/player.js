@@ -35,14 +35,18 @@ export default class Player {
   canvas = null
   /** @type {HTMLElement} */
   contianer = null
-
+  /**
+   * 播放器状态
+   * @type {'playing'|'stoped'|'paused'|'in-background'}
+   */
+  // status = 'stoped'
   /**
    * 录制器
    * @type {import('./recorder').default}
    */
   recorder = null
   /** 播放器状态 */
-  status = {
+  store = {
     canvasAngle: 0,
     /** 表示播放器处于后台（不可见状态） */
     isBackground: false
@@ -221,7 +225,7 @@ export default class Player {
       this.source.changeUrl(url)
     } else {
       this.source.url = url
-      if (!!url && !this.status.isBackground) {
+      if (!!url && !this.store.isBackground) {
         this.play()
       }
     }
@@ -245,7 +249,7 @@ export default class Player {
 
   /** 进入前台 */
   intoFront() {
-    this.status.isBackground = false
+    this.store.isBackground = false
     if (this.paused) {
       this.play()
     }
@@ -253,7 +257,7 @@ export default class Player {
 
   /** 进入后台 */
   intoBackground() {
-    this.status.isBackground = true
+    this.store.isBackground = true
     if (this.options.pauseWhenHidden) {
       this.pause()
     }
@@ -269,7 +273,7 @@ export default class Player {
 
     const canvas = this.canvas
 
-    angle = append ? this.status.canvasAngle + angle : angle
+    angle = append ? this.store.canvasAngle + angle : angle
     angle = angle >= 360 ? angle - 360 : angle <= -360 ? angle + 360 : angle
 
     if ((Math.abs(angle) / 90) % 2 === 1) {
@@ -290,7 +294,7 @@ export default class Player {
     }
     canvas.style.transform = `rotate(${angle}deg)`
 
-    this.status.canvasAngle = angle
+    this.store.canvasAngle = angle
   }
   /**
    * 截图
@@ -467,10 +471,13 @@ export default class Player {
   play() {
     if (this.animationId) {
       return
-    } else if (this.status.isBackground) {
-      this.wantsToPlay = true
-      return
     }
+
+    // else if (this.store.isBackground) {
+    //   this.wantsToPlay = true
+    //   this.animationId = requestAnimationFrame(this.update.bind(this))
+    //   return
+    // }
 
     this.animationId = requestAnimationFrame(this.update.bind(this))
     this.wantsToPlay = true
@@ -705,7 +712,7 @@ export default class Player {
     this.options.onSourceConnected?.(this)
   }
   handleSourceEstablished() {
-    if (this.status.isBackground) {
+    if (this.store.isBackground) {
       this.source.pause()
     } else if (this.paused) {
       this.play()
