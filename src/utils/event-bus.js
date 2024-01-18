@@ -6,6 +6,7 @@
  * @Description:
  */
 export class EventBus extends EventTarget {
+  /** @type {{[key:string]:Array<{callback:Function}>}} */
   eventMap = {}
   constructor() {
     super()
@@ -42,6 +43,7 @@ export class EventBus extends EventTarget {
         this._removeEvent(type, callback)
       }
     }
+
     this.addEventListener(type, wrapCallback, options)
   }
   /**
@@ -76,7 +78,12 @@ export class EventBus extends EventTarget {
       bubbles: true,
       cancelable: true
     })
-    this.dispatchEvent(event)
+
+    try {
+      this.dispatchEvent(event)
+    } catch (error) {
+      console.error(error)
+    }
   }
   offAll() {
     let keys = Object.keys(this.eventMap)

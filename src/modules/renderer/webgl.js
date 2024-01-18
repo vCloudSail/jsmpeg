@@ -3,8 +3,16 @@ export default class WebGLRenderer {
   canvas
   /** @type {WebGLRenderingContext} */
   gl
+  /** @type {boolean} */
+  ownsCanvasElement
   constructor(options) {
-    this.canvas = options.canvas ?? document.createElement('canvas')
+    if (options.canvas) {
+      this.canvas = options.canvas
+      this.ownsCanvasElement = false
+    } else {
+      this.canvas = document.createElement('canvas')
+      this.ownsCanvasElement = true
+    }
     this.width = this.canvas.width
     this.height = this.canvas.height
     this.enabled = true
@@ -28,22 +36,31 @@ export default class WebGLRenderer {
       throw new Error('Failed to get WebGL Context')
     }
 
-    let gl = this.gl
-    let vertexAttr = null
+    this.handleContextLostBound = this.handleContextLost.bind(this)
+    this.handleContextRestoredBound = this.handleContextRestored.bind(this)
+
+    this.canvas.addEventListener('webglcontextlost', this.handleContextLostBound, false)
+    this.canvas.addEventListener('webglcontextrestored', this.handleContextRestoredBound, false)
+
+    this.initGL()
+  }
+
+  initGL() {
+    this.hasTextureData = {}
+
+    var gl = this.gl
+    var vertexAttr = null
 
     gl.pixelStorei(gl.UNPACK_PREMULTIPLY_ALPHA_WEBGL, false)
 
     // Init buffers
     this.vertexBuffer = gl.createBuffer()
-    let vertexCoords = new Float32Array([0, 0, 0, 1, 1, 0, 1, 1])
+    var vertexCoords = new Float32Array([0, 0, 0, 1, 1, 0, 1, 1])
     gl.bindBuffer(gl.ARRAY_BUFFER, this.vertexBuffer)
     gl.bufferData(gl.ARRAY_BUFFER, vertexCoords, gl.STATIC_DRAW)
 
     // Setup the main YCrCbToRGBA shader
-    this.program = this.createProgram(
-      WebGLRenderer.SHADER.VERTEX_IDENTITY,
-      WebGLRenderer.SHADER.FRAGMENT_YCRCB_TO_RGBA
-    )
+    this.program = this.createProgram(WebGLRenderer.SHADER.VERTEX_IDENTITY, WebGLRenderer.SHADER.FRAGMENT_YCRCB_TO_RGBA)
     vertexAttr = gl.getAttribLocation(this.program, 'vertex')
     gl.enableVertexAttribArray(vertexAttr)
     gl.vertexAttribPointer(vertexAttr, 2, gl.FLOAT, false, 0, 0)
@@ -64,7 +81,24 @@ export default class WebGLRenderer {
     this.shouldCreateUnclampedViews = !this.allowsClampedTextureData()
   }
 
+  handleContextLost(ev) {
+    ev.preventDefault()
+  }
+
+  handleContextRestored(ev) {
+    this.initGL()
+  }
+
+  /**
+   * 销毁渲染器
+   * @param {boolean} removeCanvas 是否移除canvas
+   */
   destroy(removeCanvas = true) {
+    if (this.contextLost) {
+      // Nothing to do here
+      return
+    }
+
     let gl = this.gl
 
     this.deleteTexture(gl.TEXTURE0, this.textureY)
@@ -78,11 +112,12 @@ export default class WebGLRenderer {
     gl.bindBuffer(gl.ARRAY_BUFFER, null)
     gl.deleteBuffer(this.vertexBuffer)
 
-    gl.getExtension('WEBGL_lose_context')?.loseContext()
+    this.canvas.removeEventListener('webglcontextlost', this.handleContextLostBound, false)
+    this.canvas.removeEventListener('webglcontextrestored', this.handleContextRestoredBound, false)
+    // gl.getExtension('WEBGL_lose_context')?.loseContext()
     // gl.clear()
 
-    if (removeCanvas) {
-      // 默认不移除canvas
+    if (removeCanvas && this.ownsCanvasElement) {
       this.canvas.remove()
     }
   }
@@ -150,17 +185,7 @@ export default class WebGLRenderer {
     let texture = gl.createTexture()
 
     gl.bindTexture(gl.TEXTURE_2D, texture)
-    gl.texImage2D(
-      gl.TEXTURE_2D,
-      0,
-      gl.LUMINANCE,
-      1,
-      1,
-      0,
-      gl.LUMINANCE,
-      gl.UNSIGNED_BYTE,
-      new Uint8ClampedArray([0])
-    )
+    gl.texImage2D(gl.TEXTURE_2D, 0, gl.LUMINANCE, 1, 1, 0, gl.LUMINANCE, gl.UNSIGNED_BYTE, new Uint8ClampedArray([0]))
     return gl.getError() === 0
   }
 
@@ -210,30 +235,10 @@ export default class WebGLRenderer {
     gl.bindTexture(gl.TEXTURE_2D, texture)
 
     if (this.hasTextureData[unit]) {
-      gl.texSubImage2D(
-        gl.TEXTURE_2D,
-        0,
-        0,
-        0,
-        w,
-        h,
-        gl.LUMINANCE,
-        gl.UNSIGNED_BYTE,
-        data
-      )
+      gl.texSubImage2D(gl.TEXTURE_2D, 0, 0, 0, w, h, gl.LUMINANCE, gl.UNSIGNED_BYTE, data)
     } else {
       this.hasTextureData[unit] = true
-      gl.texImage2D(
-        gl.TEXTURE_2D,
-        0,
-        gl.LUMINANCE,
-        w,
-        h,
-        0,
-        gl.LUMINANCE,
-        gl.UNSIGNED_BYTE,
-        data
-      )
+      gl.texImage2D(gl.TEXTURE_2D, 0, gl.LUMINANCE, w, h, 0, gl.LUMINANCE, gl.UNSIGNED_BYTE, data)
     }
   }
 
@@ -251,9 +256,7 @@ export default class WebGLRenderer {
       }
 
       let canvas = document.createElement('canvas')
-      return !!(
-        canvas.getContext('webgl') || canvas.getContext('experimental-webgl')
-      )
+      return !!(canvas.getContext('webgl') || canvas.getContext('experimental-webgl'))
     } catch (err) {
       return false
     }

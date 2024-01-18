@@ -120,7 +120,11 @@ export default class WSSource {
     if (!this.url) return
     // 连java的websocket时，第二个参数要么传值，要么不传值，不能传null，否则会一直出现连接失败的问题
     try {
-      this.socket = new WebSocket(this.url, this.options?.protocols)
+      if (this.options.protocols) {
+        this.socket = new WebSocket(this.url, this.options.protocols)
+      } else {
+        this.socket = new WebSocket(this.url)
+      }
       this.socket.binaryType = 'arraybuffer'
       this.socket.onmessage = this.onMessage.bind(this)
       this.socket.onopen = this.onOpen.bind(this)

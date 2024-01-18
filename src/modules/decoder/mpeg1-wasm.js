@@ -105,7 +105,13 @@ export default class MPEG1WASM extends BaseDecoder {
       this.destination.resize(w, h)
       this.resolution.width = w
       this.resolution.height = h
-      this.options.onResolutionDecode?.(w, h)
+
+      this.eventBus?.emit('resolution-decode', this, {
+        width: w,
+        height: h
+      })
+      this.options.onResolutionDecode?.(this, w, h)
+
     }
 
     if (this.decodeFirstFrame) {

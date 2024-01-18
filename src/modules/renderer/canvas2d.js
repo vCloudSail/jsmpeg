@@ -3,20 +3,30 @@ import { Fill } from '../../utils'
 export default class CanvasRenderer {
   /** @type {HTMLCanvasElement} */
   canvas
+  /** @type {boolean} */
+  enabled = false
   /**
    *
    * @param {import('../../types').PlayerOptions} options
    */
   constructor(options) {
-    this.canvas = options.canvas ?? document.createElement('canvas')
+    if (options.canvas) {
+      this.canvas = options.canvas
+      this.ownsCanvasElement = false
+    } else {
+      this.canvas = document.createElement('canvas')
+      this.ownsCanvasElement = true
+    }
+
     this.width = this.canvas.width
     this.height = this.canvas.height
     this.enabled = true
-
-    this.context = this.canvas.getContext('2d')
   }
 
-  destroy() {
+  destroy(removeCanvas = true) {
+    if (this.ownsCanvasElement && removeCanvas) {
+      this.canvas.remove()
+    }
     // Nothing to do here
   }
 

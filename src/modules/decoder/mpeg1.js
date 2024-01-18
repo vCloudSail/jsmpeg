@@ -106,14 +106,14 @@ export default class MPEG1 extends BaseDecoder {
 
       if (this.destination) {
         this.destination.resize(newWidth, newHeight)
-        this.resolution.width = w
-        this.resolution.height = h
+        this.resolution.width = newWidth
+        this.resolution.height = newHeight
 
-        this.options.onResolutionDecode?.(this, {
+        this.eventBus?.emit('resolution-decode', this, {
           width: newWidth,
           height: newHeight
         })
-        this.eventBus?.emit('resolution-decode', this, {
+        this.options.onResolutionDecode?.(this, {
           width: newWidth,
           height: newHeight
         })

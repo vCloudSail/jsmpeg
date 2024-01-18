@@ -1,28 +1,65 @@
-import Source from './source'
-
 export default class WASM {
-  constructor() {
-    this.stackSize = 5 * 1024 * 1024 // emscripten default
-    this.pageSize = 64 * 1024 // wasm page size
-    this.onInitCallback = null
-    this.ready = false
-  }
+  /** emscripten default */
+  stackSize = 5 * 1024 * 1024
+  /** wasm page size */
+  pageSize = 64 * 1024
+  onInitCallbacks = []
+  ready = false
+  loadingFromFileStarted = false
+  loadingFromBufferStarted = false
+
+  constructor() {}
 
   write(buffer) {
-    this.loadFromBuffer(buffer, this.onInitCallback)
+    this.loadFromBuffer(buffer)
   }
 
   loadFromFile(url, callback) {
-    this.onInitCallback = callback
-    let ajax = new Source.Ajax(url, {})
+    if (callback) {
+      this.onInitCallbacks.push(callback)
+    }
+
+    // Make sure this WASM Module is only instantiated once. If loadFromFile()
+    // was already called, bail out here. On instantiation all pending
+    // onInitCallbacks will be called.
+    if (this.loadingFromFileStarted) {
+      return
+    }
+    this.loadingFromFileStarted = true
+
+    this.onInitCallbacks = callback
+    let ajax = new JSMpeg.Source.Ajax(url, {})
     ajax.connect(this)
     ajax.start()
   }
 
+  // async loadFromViteInit(initFn, callback) {
+  //   if (callback) {
+  //     this.onInitCallbacks.push(callback)
+  //   }
+
+  //   await initFn()
+  //   callback()
+  // }
+
   loadFromBuffer(buffer, callback) {
+    if (callback) {
+      this.onInitCallbacks.push(callback)
+    }
+
+    // Make sure this WASM Module is only instantiated once. If loadFromBuffer()
+    // was already called, bail out here. On instantiation all pending
+    // onInitCallbacks will be called.
+    if (this.loadingFromBufferStarted) {
+      return
+    }
+    this.loadingFromBufferStarted = true
+
     this.moduleInfo = this.readDylinkSection(buffer)
     if (!this.moduleInfo) {
-      this.callback && this.callback(null)
+      for (let i = 0; i < this.onInitCallbacks.length; i++) {
+        this.onInitCallbacks[i](null)
+      }
       return
     }
 
@@ -51,7 +88,9 @@ export default class WASM {
         }
         this.createHeapViews()
         this.ready = true
-        callback && callback(this)
+        for (let i = 0; i < this.onInitCallbacks.length; i++) {
+          this.onInitCallbacks[i](this)
+        }
       }.bind(this)
     )
   }
@@ -113,10 +152,7 @@ export default class WASM {
 
     function matchNextBytes(expected) {
       for (let i = 0; i < expected.length; i++) {
-        let b =
-          typeof expected[i] === 'string'
-            ? expected[i].charCodeAt(0)
-            : expected[i]
+        let b = typeof expected[i] === 'string' ? expected[i].charCodeAt(0) : expected[i]
         if (bytes[next++] !== b) {
           return false
         }
@@ -150,6 +186,10 @@ export default class WASM {
     return !!window.WebAssembly
   }
 
+  /**
+   *
+   * @returns {WASM}
+   */
   static GetModule() {
     WASM.CACHED_MODULE = WASM.CACHED_MODULE || new WASM()
     return WASM.CACHED_MODULE
