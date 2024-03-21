@@ -15,6 +15,13 @@ const fullscreen = {
    */
   request(el, exitCb) {
     if (el instanceof HTMLElement) {
+      const requestMethod =
+        el.requestFullScreen ?? //W3C
+        el.webkitRequestFullScreen ?? //FireFox
+        el.mozRequestFullScreen ?? //Chrome等
+        el.msRequestFullScreen //IE11
+      requestMethod?.call(el)
+
       const cb = (ev) => {
         console.log('fullscreen -> resize ', ev)
         el.scrollIntoView({
@@ -28,13 +35,6 @@ const fullscreen = {
         }
       }
       window.addEventListener('resize', cb, false)
-
-      const requestMethod =
-        el.requestFullScreen ?? //W3C
-        el.webkitRequestFullScreen ?? //FireFox
-        el.mozRequestFullScreen ?? //Chrome等
-        el.msRequestFullScreen //IE11
-      requestMethod?.call(el)
     }
   },
   exit(el) {

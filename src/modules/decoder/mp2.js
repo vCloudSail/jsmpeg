@@ -166,7 +166,7 @@ export default class MP2 extends BaseDecoder {
     // Read scale factor selector information
     let channels = mode === MP2.MODE.MONO ? 1 : 2
     for (let sb = 0; sb < sblimit; sb++) {
-      for (ch = 0; ch < channels; ch++) {
+      for (let ch = 0; ch < channels; ch++) {
         if (this.allocation[ch][sb]) {
           this.scaleFactorInfo[ch][sb] = this.bits.read(2)
         }

@@ -5,10 +5,33 @@ import MPEG1 from '../decoder/mpeg1'
 import MPEG1WASM from '../decoder/mpeg1-wasm'
 
 export default class TS {
-  /** @type {BitBuffer} */
+  /**
+   * @type {BitBuffer}
+   * */
   bits
-  /** @type {{[key:string]: {destination: MPEG1|MPEG1WASM|MP2|MP2WASM,currentLength: number,totalLength: number, pts: number, buffers: BitBuffer}}} */
+  /**
+   * @type {{[key:string]: import('@/types/demuxer').PesPacket}}
+   */
   pesPacketInfo
+  /**
+   * @type {{ [key:string]: string }}
+   */
+  pidsToStreamIds
+  /**
+   * 开始时间
+   * @type {number}
+   */
+  startTime
+  /**
+   * 当前时间
+   * @type {number}
+   */
+  currentTime
+  /**
+   * @type {boolean}
+   */
+  guessVideoFrameEnd
+
   constructor(options) {
     this.bits = null
     this.leftoverBytes = null
@@ -43,8 +66,7 @@ export default class TS {
     while (this.bits.has(188 << 3) && this.parsePacket()) {}
 
     let leftoverCount = this.bits.byteLength - (this.bits.index >> 3)
-    this.leftoverBytes =
-      leftoverCount > 0 ? this.bits.bytes.subarray(this.bits.index >> 3) : null
+    this.leftoverBytes = leftoverCount > 0 ? this.bits.bytes.subarray(this.bits.index >> 3) : null
   }
 
   parsePacket() {
@@ -114,7 +136,6 @@ export default class TS {
             // so we're using JavaScript's double number type. Also
             // divide by the 90khz clock to get the pts in seconds.
             pts = (p32_30 * 1073741824 + p29_15 * 32768 + p14_0) / 90000
-
             this.currentTime = pts
             if (this.startTime === -1) {
               this.startTime = pts
@@ -205,8 +226,12 @@ export default class TS {
     return complete
   }
 
+  /**
+   *
+   * @param {import('@/types/demuxer').PesPacket} pi
+   */
   packetComplete(pi) {
-    // 在这里将视频流写入了解码器
+    // 在这里将视频/音频流写入了对应的解码器
     pi.destination.write(pi.pts, pi.buffers)
     pi.totalLength = 0
     pi.currentLength = 0

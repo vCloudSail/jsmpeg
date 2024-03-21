@@ -1,12 +1,8 @@
-import WebAudioOut from '../audio-output/webaudio'
-import CanvasRenderer from '../renderer/canvas2d'
-import WebGLRenderer from '../renderer/webgl'
-
 export default class BaseDecoder {
   /** @type {import('../../utils/event-bus').EventBus} */
   eventBus
   /**
-   * @type {WebGLRenderer|CanvasRenderer|WebAudioOut}
+   * @type {import('@/types/decoder').DecoderDestination}
    */
   destination
   constructor(options) {
@@ -24,9 +20,9 @@ export default class BaseDecoder {
 
     Object.defineProperty(this, 'currentTime', { get: this.getCurrentTime })
   }
-/**
- * 
- */
+  /**
+   *
+   */
   destroy() {}
 
   connect(destination) {
@@ -99,10 +95,7 @@ export default class BaseDecoder {
       // Did we find a new PTS, different from the last? If so, we don't have
       // to advance the decoded time manually and can instead sync it exactly
       // to the PTS.
-      if (
-        newTimestampIndex !== -1 &&
-        newTimestampIndex !== this.timestampIndex
-      ) {
+      if (newTimestampIndex !== -1 && newTimestampIndex !== this.timestampIndex) {
         this.timestampIndex = newTimestampIndex
         this.decodedTime = this.timestamps[this.timestampIndex].time
         return

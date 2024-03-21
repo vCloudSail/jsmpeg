@@ -56,15 +56,17 @@ export default class Recorder {
    * @type {HTMLCanvasElement}
    */
   canvas = null
+  fileName = 'JSMpeg'
   /**
    *
    * @param {object} param
    * @param {HTMLCanvasElement} param.canvas
    * @param {'canvas'|'ws'|'auto'} param.mode
-   * @param {any} param.source
+   * @param {import('@/modules/source/websocket').default} param.source
    * @param {any} param.eventBus
+   * @param {string} param.fileName
    */
-  constructor({ canvas, mode = 'auto', source, eventBus } = {}) {
+  constructor({ canvas, mode = 'auto', source, eventBus, fileName = 'JSMpeg' } = {}) {
     if (!/^auto|canvas|ws$/.test(mode)) {
       throw new Error('[Recorder] 不支持此录制模式: ' + mode)
     }
@@ -73,6 +75,7 @@ export default class Recorder {
     this.canvas = canvas
     this.source = source
     this.eventBus = eventBus
+    this.fileName = fileName
 
     if (mode === 'auto' || !mode) {
       this.mode = 'ws'
@@ -197,7 +200,7 @@ export default class Recorder {
    * 保存
    * @returns
    */
-  save(name = 'jsmpeg') {
+  save(name = this.fileName) {
     if (!this.chunks) return
 
     let outputName = `${name}_录制_${new Date().toLocaleTimeString()}`

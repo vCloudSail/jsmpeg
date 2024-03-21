@@ -10,10 +10,7 @@ export default class BitBuffer {
   index
   constructor(bufferOrLength, mode = BitBuffer.MODE.EXPAND) {
     if (typeof bufferOrLength === 'object') {
-      this.bytes =
-        bufferOrLength instanceof Uint8Array
-          ? bufferOrLength
-          : new Uint8Array(bufferOrLength)
+      this.bytes = bufferOrLength instanceof Uint8Array ? bufferOrLength : new Uint8Array(bufferOrLength)
 
       this.byteLength = this.bytes.length
     } else {
@@ -71,10 +68,15 @@ export default class BitBuffer {
     let isArrayOfBuffers = typeof buffers[0] === 'object',
       totalLength = 0,
       available = this.bytes.length - this.byteLength
-
+      
     // Calculate total byte length
     if (isArrayOfBuffers) {
-      let totalLength = 0
+      /**
+       * 这里注意下，由于把所有var替换为let，
+       * 原作者的写法会导致totalLength在这里变成局部变量从而导致buffer无法自动扩容
+       * @see: https://github.com/phoboslab/jsmpeg/blob/master/src/buffer.js#L71
+       */
+      totalLength = 0
       for (let i = 0; i < buffers.length; i++) {
         totalLength += buffers[i].byteLength
       }
@@ -112,11 +114,7 @@ export default class BitBuffer {
 
   findNextStartCode() {
     for (let i = (this.index + 7) >> 3; i < this.byteLength; i++) {
-      if (
-        this.bytes[i] == 0x00 &&
-        this.bytes[i + 1] == 0x00 &&
-        this.bytes[i + 2] == 0x01
-      ) {
+      if (this.bytes[i] == 0x00 && this.bytes[i + 1] == 0x00 && this.bytes[i + 2] == 0x01) {
         this.index = (i + 4) << 3
         return this.bytes[i + 3]
       }
@@ -138,12 +136,7 @@ export default class BitBuffer {
 
   nextBytesAreStartCode() {
     let i = (this.index + 7) >> 3
-    return (
-      i >= this.byteLength ||
-      (this.bytes[i] == 0x00 &&
-        this.bytes[i + 1] == 0x00 &&
-        this.bytes[i + 2] == 0x01)
-    )
+    return i >= this.byteLength || (this.bytes[i] == 0x00 && this.bytes[i + 1] == 0x00 && this.bytes[i + 2] == 0x01)
   }
 
   peek(count) {

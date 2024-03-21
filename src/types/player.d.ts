@@ -9,9 +9,13 @@ export interface PlayerOptions {
   audio?: boolean
   /** 是否解码视频。默认true */
   video?: boolean
-  /** 一个图像的URL，用来在视频播放之前作为海报显示。 */
+  /** 海报图像的URL，用来在视频播放之前作为海报显示。 */
   poster?: string
-  /** 是否禁用后台播放，当TAB处于非活动状态时是否暂停播放。注意，浏览器通常会在非活动标签中限制JS。默认true */
+  /** 
+   * 是否自动暂停播放（标签进入后台）。默认true 
+   * 
+   * 注意，浏览器通常会在非活动标签中限制JS。
+   */
   pauseWhenHidden?: boolean
   /** 是否禁用WebGL，始终使用Canvas2D渲染器。默认.false */
   disableGl?: boolean

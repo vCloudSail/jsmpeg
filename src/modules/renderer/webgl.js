@@ -1,3 +1,5 @@
+import { Now, delayCalculator } from '../../utils'
+
 export default class WebGLRenderer {
   /** @type {HTMLCanvasElement} */
   canvas
@@ -227,6 +229,8 @@ export default class WebGLRenderer {
     this.updateTexture(gl.TEXTURE2, this.textureCr, w2, h2, cr)
 
     gl.drawArrays(gl.TRIANGLE_STRIP, 0, 4)
+
+    // delayCalculator.start() 
   }
 
   updateTexture(unit, texture, w, h, data) {

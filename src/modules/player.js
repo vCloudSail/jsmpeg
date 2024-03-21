@@ -10,9 +10,33 @@ import AjaxProgressiveSource from './source/ajax-progressive'
 import WSSource from './source/websocket'
 import BitBuffer from './buffer'
 import Recorder from './recorder'
+// import WASM_BINARY_INLINED from '../wasm/jsmpeg.wasm.base64?raw'
 import WASM_BINARY_INLINED from '../wasm'
 import { EventBus } from '../utils/event-bus'
+import { merge } from 'lodash-es'
 
+/**
+ * @returns {import('@/types/player').PlayerOptions}
+ */
+const defaultOptions = () => ({
+  autoplay: true,
+  udio: true,
+  video: true,
+  poster: null,
+  pauseWhenHidden: true,
+  disableGl: false,
+  disableWebAssembly: false,
+  preserveDrawingBuffer: true,
+  progressive: true,
+  throttled: true,
+  chunkSize: 1024 * 1024,
+  decodeFirstFrame: true,
+  maxAudioLag: 0.25,
+  videoBufferSize: 10 * 1024 * 1024,
+  audioBufferSize: 128 * 1024
+})
+
+// import WASM
 // The build process may append `JSMpeg.WASM_BINARY_INLINED = base64data;`
 // to the minified source.
 // If this property is present, jsmpeg will use the inlined binary data
@@ -21,8 +45,6 @@ import { EventBus } from '../utils/event-bus'
 /**
  * @class {import('../jsmpeg').JSMpegPlayer}
  * @author cloudsail
- * @description 基于jsmpeg二次开发
- *
  */
 export default class Player {
   /**
@@ -69,6 +91,12 @@ export default class Player {
   currentTime
   /** @type {number} */
   volume
+  get delay() {
+    if (!this.demuxer.currentTime || !this.startTime) {
+      return -1
+    }
+    return this.demuxer.currentTime - (Now() - this.startTime)
+  }
   /**
    *
    * @param {string} url
@@ -90,23 +118,22 @@ export default class Player {
    * @param {string} url
    * @param {import('../types/player').PlayerOptions} options
    */
-  init(url, options) {
-    this.options = options
-    this.eventBus = this.options.eventBus = new EventBus()
+  init(url, options = defaultOptions) {
+    this.options = merge(defaultOptions(), options)
+    this.options.eventBus = this.eventBus = new EventBus()
 
     this.initCanvas()
     this.initSource(url)
 
-    this.maxAudioLag = options.maxAudioLag || 0.25
-    this.loop = options.loop !== false
-    this.autoplay = !!options.autoplay || options.streaming
+    this.loop = this.options.loop !== false
+    this.autoplay = !!this.options.autoplay || this.options.streaming
 
     this.demuxer = new Demuxer.TS(options)
     this.source.connect(this.demuxer)
 
-    if (!options.disableWebAssembly && WASM.IsSupported()) {
+    if (this.options.disableWebAssembly !== true && WASM.IsSupported()) {
       this.wasmModule = WASM.GetModule()
-      options.wasmModule = this.wasmModule
+      this.options.wasmModule = this.wasmModule
     }
 
     this.initVideo()
@@ -114,17 +141,18 @@ export default class Player {
 
     this.paused = true
     this.unpauseOnShow = false
-    document.addEventListener('visibilitychange', this.showHide.bind(this))
 
-    // If we have WebAssembly support, wait until the module is compiled before
-    // loading the source. Otherwise the decoders won't know what to do with
-    // the source data.
+    if (this.options.pauseWhenHidden !== false) {
+      document.addEventListener('visibilitychange', this.onVisibilityChange, { passive: true })
+    }
+
+    // 如果有WebAssembly支持，请等到模块编译完成后再加载源代码。否则，解码器将不知道如何处理源数据。
     if (this.wasmModule) {
       if (this.wasmModule.ready) {
         this.startLoading()
-      } else if (Player.WASM_BINARY_INLINED) {
-        let wasm = Base64ToArrayBuffer(Player.WASM_BINARY_INLINED)
-        this.wasmModule.loadFromBuffer(wasm, this.startLoading.bind(this))
+      } else if (WASM_BINARY_INLINED) {
+        const wasmBuffer = Base64ToArrayBuffer(WASM_BINARY_INLINED)
+        this.wasmModule.loadFromBuffer(wasmBuffer, this.startLoading.bind(this))
       } else {
         this.wasmModule.loadFromFile('jsmpeg.wasm', this.startLoading.bind(this))
       }
@@ -133,6 +161,7 @@ export default class Player {
     }
     this.renderer.clear()
   }
+
   initCanvas() {
     const options = this.options
 
@@ -186,11 +215,11 @@ export default class Player {
     const options = this.options
 
     if (options.video !== false) {
-      this.video = options.wasmModule ? new Decoder.MPEG1VideoWASM(options) : new Decoder.MPEG1Video(options)
+      this.video = this.wasmModule ? new Decoder.MPEG1VideoWASM(options) : new Decoder.MPEG1Video(options)
       this.video.player = this
 
       this.renderer =
-        !options.disableGl && Renderer.WebGL.IsSupported()
+        options.disableGl !== true && Renderer.WebGL.IsSupported()
           ? new Renderer.WebGL(options)
           : new Renderer.Canvas2D(options)
 
@@ -202,7 +231,7 @@ export default class Player {
     const options = this.options
 
     if (options.audio !== false && AudioOutput.WebAudio.IsSupported()) {
-      this.audio = options.wasmModule ? new Decoder.MP2AudioWASM(options) : new Decoder.MP2Audio(options)
+      this.audio = this.wasmModule ? new Decoder.MP2AudioWASM(options) : new Decoder.MP2Audio(options)
       this.audioOut = new AudioOutput.WebAudio(options)
       this.demuxer.connect(Demuxer.TS.STREAM.AUDIO_1, this.audio)
       this.audio.connect(this.audioOut)
@@ -237,12 +266,22 @@ export default class Player {
 
     switch (name) {
       case 'pauseWhenHidden':
+        if (this.options.pauseWhenHidden === value) {
+          return
+        }
+
+        if (value !== false) {
+          document.addEventListener('visibilitychange', this.onVisibilityChange, { passive: true })
+        } else {
+          document.removeEventListener('visibilitychange', this.onVisibilityChange)
+        }
         this.options.pauseWhenHidden = value
+
         break
     }
   }
 
-  /** 进入前台 */
+  /** 设置进入前台 */
   intoFront() {
     this.store.isBackground = false
     if (this.paused) {
@@ -250,10 +289,10 @@ export default class Player {
     }
   }
 
-  /** 进入后台 */
+  /** 设置进入后台 */
   intoBackground() {
     this.store.isBackground = true
-    if (this.options.pauseWhenHidden) {
+    if (this.options.pauseWhenHidden !== false) {
       this.pause()
     }
   }
@@ -315,15 +354,16 @@ export default class Player {
       download(url.replace(mime, 'image/octet-stream'), `${name}_snapshot_${Date.now()}.png`, mime)
     }
   }
+
   /**
    * 视频录制
    * @author cloudsail
-   * @param {string} name
-   * @param {'auto'|'canvas'} mode
+   * @param {string} fileName 录制文件名称
+   * @param {'auto'|'canvas'} [mode='auto'] 录制模式
    */
-  startRecording(mode = 'auto') {
+  startRecording(fileName = 'JSMpeg', mode = 'auto') {
     if (!this.isPlaying) {
-      console.warn('[JSMpegPlayer] 播放器没有播放源，无法录屏')
+      console.warn('[JSMpegPlayer] 播放器未处于播放状态，无法录屏')
       return
     }
     if (this.recorder?.running) {
@@ -336,22 +376,28 @@ export default class Player {
 
     try {
       this.recorder = new Recorder({
+        fileName,
         canvas: this.canvas,
         mode,
         source: this.source,
         eventBus: this.eventBus
       })
       this.recorder.start()
+      return true
     } catch (error) {
       console.error(error)
+      return false
     }
   }
-  stopRecording(name = 'JSMpeg') {
-    if (!this.recorder?.running) return
+
+  /** 停止录制 */
+  stopRecording() {
+    if (!this.recorder?.running) return false
 
     this.recorder.stop()
-    this.recorder.save(name)
+    this.recorder.save()
     this.recorder = null
+    return true
   }
 
   clearPlayer() {
@@ -417,25 +463,6 @@ export default class Player {
   }
 
   /**
-   *
-   * @param {*} ev
-   * @returns
-   */
-  showHide(ev) {
-    if (!this.options.pauseWhenHidden) {
-      this.play()
-      return
-    }
-
-    if (document.visibilityState === 'hidden') {
-      this.unpauseOnShow = this.wantsToPlay
-      this.intoBackground()
-    } else if (this.unpauseOnShow) {
-      this.intoFront()
-    }
-  }
-
-  /**
    * 获取当前音量
    * @returns
    */
@@ -490,8 +517,9 @@ export default class Player {
     }
 
     cancelAnimationFrame(this.animationId)
-    this.source?.pause()
     this.animationId = null
+
+    this.source?.pause()
     this.wantsToPlay = false
     this.isPlaying = false
     this.paused = true
@@ -524,9 +552,13 @@ export default class Player {
   }
 
   /**
-   * stops playback, disconnects the source and cleans up WebGL and WebAudio state. The player can not * be used afterwards. If the player created the canvas element it is removed from the document.
+   * 停止播放，断开源连接并清理WebGL和WebAudio状态。该播放器不能再使用。
+   *
+   * 如果是由player创建了canvas元素，则将其从文档中移除。
    */
   destroy() {
+    document.removeEventListener('visibilitychange', this.onVisibilityChange)
+
     this.pause()
     this.eventBus.offAll()
     this.source.destroy()
@@ -611,6 +643,7 @@ export default class Player {
       do {
         // 如果已经有很多音频流排队，禁用输出并跟上编码。
         if (this.audioOut.enqueuedTime > this.maxAudioLag) {
+          console.warn('检查到音画不同步，禁用输出并等待同步')
           this.audioOut.resetEnqueuedTime()
           this.audioOut.enabled = false
         }
@@ -720,8 +753,22 @@ export default class Player {
       this.options.onSourceClosed(this)
     }
   }
+
+  onVisibilityChange = (ev) => {
+    if (!this.options.pauseWhenHidden) {
+      this.play()
+      return
+    }
+
+    if (document.visibilityState === 'hidden') {
+      this.unpauseOnShow = this.wantsToPlay
+      this.intoBackground()
+    } else if (this.unpauseOnShow) {
+      this.intoFront()
+    }
+  }
   // #endregion
 
   /** wasm模块编译压缩后的字符串 */
-  static WASM_BINARY_INLINED = WASM_BINARY_INLINED
+  // static WASM_BINARY_INLINED = WASM_BINARY_INLINED
 }

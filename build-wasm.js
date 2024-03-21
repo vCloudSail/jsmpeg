@@ -1,7 +1,48 @@
+/** 
+Build the .wasm Module first
+
+Since we're compiling a side module here, so that we can load it without the
+runtime cruft, we have to explicitly compile in support for malloc and
+friends.
+Note memcpy, memmove and memset are explicitly exported, otherwise they will
+be eliminated by the SIDE_MODULE=2 setting - not sure why that happens.
+
+This NEEDS to be compiled with emscripten 1.38.47. Newer versions mess with
+malloc and friends and need some more glue code for side modules that I 
+haven't quite worked out yet. If you have any idea how to build a SIDE_MODULE
+(or STANDALONE_WASM - as seems to be the new deal) with support for malloc,
+please let me know or file a PR.
+
+To install the correct version, issue the following in your emsdk directory:
+./emsdk install 1.38.47
+./emsdk activate 1.38.47
+source ./emsdk_env.sh
+
+The $EMSCRIPTEN_LIB var needs to point to the correct directory within the sdk
+that has emmalloc.cpp. This is usually $EMSDK/fastcomp/emscripten/system/lib
+but it might differ per system. I don't know.
+There used to be an $EMSCRIPTEN var set by the emsdk_env script that pointed
+to the correct directory, but this seems to have gone now.
+
+In conclusion, emscripten encapsulates everything that I hate about native 
+development :/
+*/
+
+/**
+ * 注意以下几点
+ * 1. emsdk安装并激活1.38.47版本
+ * 2. 在操作系统中正确的配置环境变量EMSDK
+ * 3. 如果报错```llc executable not found at```，参考：https://cloud.tencent.com/developer/news/900632
+ */
+
 const { execSync, exec } = require('child_process')
 
-const EMSCRIPTEN_LIB="$EMSDK/fastcomp/emscripten/system/lib"
+// 部分系统路径可能是$EMSDK/fastcomp/emscripten/system/lib
+if (!process.env['EMSDK']) {
+  throw new Error('请正确配置环境变量EMSDK')
+}
 
+const EMSCRIPTEN_LIB = (process.env['EMSDK'] || '') + '/emscripten/system/lib'
 
 const exportedFunctions = [
   '_memcpy',
@@ -38,17 +79,15 @@ const exportedFunctions = [
 // return
 // exec('rm -rf src/wasm/jsmpeg.wasm')
 
-
-// ${EMSCRIPTEN_LIB}/emmalloc.cpp \
-// ${EMSCRIPTEN_LIB}/libc/musl/src/string/memcpy.c \
-// ${EMSCRIPTEN_LIB}/libc/musl/src/string/memmove.c \
-// ${EMSCRIPTEN_LIB}/libc/musl/src/string/memset.c \
-
 exec(
   `emcc \
   src/wasm/mpeg1.c \
   src/wasm/mp2.c \
   src/wasm/buffer.c \
+  ${EMSCRIPTEN_LIB}/emmalloc.cpp \
+  ${EMSCRIPTEN_LIB}/libc/musl/src/string/memcpy.c \
+  ${EMSCRIPTEN_LIB}/libc/musl/src/string/memmove.c \
+  ${EMSCRIPTEN_LIB}/libc/musl/src/string/memset.c \
   -s WASM=1 \
   -s SIDE_MODULE=2 \
   -s TOTAL_STACK=5242880 \

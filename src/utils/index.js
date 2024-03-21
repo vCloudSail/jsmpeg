@@ -1,7 +1,14 @@
-export function Now() {
-  return window.performance
-    ? window.performance.now() / 1000
-    : Date.now() / 1000
+/**
+ *
+ * @param {'ms'|'s'} unit
+ * @returns
+ */
+export function Now(unit = 's') {
+  const _now = window.performance ? window.performance.now() : Date.now()
+  if (unit === 'ms') {
+    return _now
+  }
+  return _now / 1000
 }
 
 export function Fill(array, value) {
@@ -91,9 +98,7 @@ export function formatTimestamp(timestamp, showMs) {
     result = `${prefixPadZero(seconds % 60)}:${prefixPadZero(minutes % 60)}`
   }
   if (hours >= 1) {
-    result = `${prefixPadZero(hours % 24)}:${prefixPadZero(
-      seconds % 60
-    )}:${prefixPadZero(minutes % 60)}`
+    result = `${prefixPadZero(hours % 24)}:${prefixPadZero(seconds % 60)}:${prefixPadZero(minutes % 60)}`
   }
 
   if (showMs) {
@@ -101,4 +106,21 @@ export function formatTimestamp(timestamp, showMs) {
   }
 
   return result
+}
+
+export const delayCalculator = {
+  startTime: 0,
+  start() {
+    if (this.startTime) {
+      return
+    }
+
+    this.startTime = Now('ms')
+  },
+  end() {
+    this.value = Now('ms') - this.startTime
+    this.startTime = 0
+    console.log('延迟时间', this.value)
+  },
+  value: 0
 }

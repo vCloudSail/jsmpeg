@@ -1,6 +1,6 @@
 'use strict'
-
 import TS from '../demuxer/ts'
+import { Now, delayCalculator } from '../../utils'
 
 const defaultOptions = {
   // 表示多久没收到视频流
@@ -47,10 +47,7 @@ export default class WSSource {
     this.url = url
     this.options = options
 
-    this.reconnectInterval =
-      typeof options.reconnectInterval === 'number'
-        ? options.reconnectInterval
-        : 5
+    this.reconnectInterval = typeof options.reconnectInterval === 'number' ? options.reconnectInterval : 5
     this.shouldAttemptReconnect = !!this.reconnectInterval
 
     this.eventBus = options.eventBus
@@ -168,6 +165,8 @@ export default class WSSource {
     this.reconnectTimeoutId = 0
     this.reconnectCount = 0
     this.isOpened = true
+    this.isPaused = false
+
     if (this.onConnectedCallback) {
       this.onConnectedCallback(this)
       this.eventBus?.emit('source-connected', this)
@@ -182,31 +181,26 @@ export default class WSSource {
   onClose() {
     this.established = false
     if (this.progress >= 1) {
+      if (!this.isStreamInterrupt) {
+        clearTimeout(this.timer.streamInterrupt)
+        this.eventBus?.emit('source-interrupt', this)
+      }
+
       // progress>=1，表示已经建立连接后的断开
       // 这时可能是由于部分异常导致的断联，需要重新启动
       this.progress = 0
-      if (this.onClosedCallback) {
-        this.onClosedCallback(this)
-        this.eventBus?.emit('source-closed', this)
-      }
+      this.onClosedCallback?.(this)
+      this.eventBus?.emit('source-closed', this)
+
       clearTimeout(this.reconnectTimeoutId)
-      this.reconnectTimeoutId = setTimeout(
-        this.start.bind(this),
-        this.reconnectInterval * 1000
-      )
+      this.reconnectTimeoutId = setTimeout(this.start.bind(this), this.reconnectInterval * 1000)
       return
     }
 
-    if (
-      this.shouldAttemptReconnect &&
-      this.reconnectCount < defaultOptions.maxReconnectCount
-    ) {
+    if (this.shouldAttemptReconnect && this.reconnectCount < defaultOptions.maxReconnectCount) {
       // 最多重连10次
       clearTimeout(this.reconnectTimeoutId)
-      this.reconnectTimeoutId = setTimeout(
-        this.wsConnect.bind(this),
-        this.reconnectInterval * 1000
-      )
+      this.reconnectTimeoutId = setTimeout(this.wsConnect.bind(this), this.reconnectInterval * 1000)
       this.reconnectCount += 1
       console.log('websocket 重连次数： ', this.reconnectCount)
     }
@@ -217,6 +211,8 @@ export default class WSSource {
    * @param {MessageEvent} ev
    */
   onMessage(ev) {
+    // delayCalculator.start()
+
     this.startStreamTimeoutTimer()
     try {
       if (!this.established) {
@@ -230,7 +226,9 @@ export default class WSSource {
         this.onStreamContinueCallback?.(this)
         this.eventBus?.emit('source-continue', this)
       }
+    } catch (error) {}
 
+    try {
       if (this.destination) {
         this.destination.write(ev.data)
       }
@@ -241,6 +239,7 @@ export default class WSSource {
         console.error(error)
       }
     }
+
     if (this.recorder) {
       try {
         this.recorder.write?.(ev.data)
@@ -254,13 +253,14 @@ export default class WSSource {
     if (this.timer.streamInterrupt) {
       clearTimeout(this.timer.streamInterrupt)
     }
+
     this.timer.streamInterrupt = setTimeout(() => {
       console.warn('[JSMpeg]: 等待视频流超时')
       this.timer.streamInterrupt = null
       this.isStreamInterrupt = true
+      this.eventBus?.emit('source-interrupt', this)
       if (this.onStreamInterruptCallback) {
         this.onStreamInterruptCallback()
-        this.eventBus?.emit('source-interrupt', this)
       }
     }, defaultOptions.streamInterruptTimeout)
   }
