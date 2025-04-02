@@ -1,33 +1,17 @@
 import { Fill } from '../../utils'
+import Renderer from './renderer'
 
-export default class CanvasRenderer {
-  /** @type {HTMLCanvasElement} */
-  canvas
-  /** @type {boolean} */
-  enabled = false
+export default class CanvasRenderer extends Renderer {
+  /** @type {CanvasRenderingContext2D } */
+  context
   /**
    *
-   * @param {import('../../types').PlayerOptions} options
+   * @param {import('../../types/player').PlayerOptions} options
    */
   constructor(options) {
-    if (options.canvas) {
-      this.canvas = options.canvas
-      this.ownsCanvasElement = false
-    } else {
-      this.canvas = document.createElement('canvas')
-      this.ownsCanvasElement = true
-    }
-
-    this.width = this.canvas.width
-    this.height = this.canvas.height
-    this.enabled = true
-  }
-
-  destroy(removeCanvas = true) {
-    if (this.ownsCanvasElement && removeCanvas) {
-      this.canvas.remove()
-    }
-    // Nothing to do here
+    super(options)
+  
+    this.context = this.canvas.getContext('2d')
   }
 
   clear() {
@@ -41,11 +25,7 @@ export default class CanvasRenderer {
   }
 
   resize(width, height) {
-    this.width = width | 0
-    this.height = height | 0
-
-    this.canvas.width = this.width
-    this.canvas.height = this.height
+    super.resize(width, height)
 
     this.imageData = this.context.getImageData(0, 0, this.width, this.height)
     Fill(this.imageData.data, 255)
@@ -63,8 +43,14 @@ export default class CanvasRenderer {
   }
 
   render(y, cb, cr) {
+    if (!this.enabled) {
+      return
+    }
+
     this.YCbCrToRGBA(y, cb, cr, this.imageData.data)
     this.context.putImageData(this.imageData, 0, 0)
+
+    super.onRender()
   }
 
   YCbCrToRGBA(y, cb, cr, rgba) {

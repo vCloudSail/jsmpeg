@@ -93,10 +93,7 @@ export interface JSMpegEventMap {
    *
    * 当获取到视频分辨率时触发发
    */
-  'resolution-decode': (
-    decoder: MPEG1 | MPEG1WASM,
-    resolution: { width: number; height: number }
-  ) => void
+  'resolution-decode': (decoder: MPEG1 | MPEG1WASM, resolution: { width: number; height: number }) => void
 
   /**
    * 录制开始事件
@@ -129,4 +126,20 @@ export interface JSMpegEventMap {
    */
   'recording-data': (data: Blob | ArrayBuffer) => void
   // #endregion
+
+  //#region
+
+  /**
+   * 帧速率更新
+   */
+  'performance-fps': (fps: number) => void
+  /**
+   * 传输速率更新(KB/s)
+   */
+  'performance-kBps': (kBps: number) => void
+  /**
+   * 帧速率更新
+   */
+  'performance-delay': (fps: number) => void
+  //#endregion
 }

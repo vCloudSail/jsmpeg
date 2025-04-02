@@ -1,10 +1,31 @@
-export default class BaseDecoder {
+export default class Decoder {
   /** @type {import('../../utils/event-bus').EventBus} */
   eventBus
   /**
    * @type {import('@/types/decoder').DecoderDestination}
    */
   destination
+  /** @type {number} */
+  startTime
+  /** @type {number} */
+  get currentTime() {
+    return this.decodedTime
+  }
+  /** @type {number} */
+  currentLocalTime = 0
+  /** @type {number} */
+  decodedTime
+  /** @type {number} */
+  timestampIndex
+  /** @type {Array} */
+  timestamps
+  /** @type {number} */
+  bytesWritten
+  /** @type {boolean} */
+  collectTimestamps
+  /** @type {boolean} */
+  canPlay
+
   constructor(options) {
     this.eventBus = options.eventBus
     this.destination = null
@@ -17,8 +38,6 @@ export default class BaseDecoder {
 
     this.startTime = 0
     this.decodedTime = 0
-
-    Object.defineProperty(this, 'currentTime', { get: this.getCurrentTime })
   }
   /**
    *
@@ -103,9 +122,5 @@ export default class BaseDecoder {
     }
 
     this.decodedTime += seconds
-  }
-
-  getCurrentTime() {
-    return this.decodedTime
   }
 }

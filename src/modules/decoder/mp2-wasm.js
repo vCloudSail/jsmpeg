@@ -1,8 +1,13 @@
 import { Now } from '../../utils'
 import BitBuffer from '../buffer'
-import BaseDecoder from './decoder'
+import Decoder from './decoder'
 
-export default class MP2WASM extends BaseDecoder {
+export default class MP2WASM extends Decoder {
+  get currentTime() {
+    let enqueuedTime = this.destination ? this.destination.enqueuedTime : 0
+    return this.decodedTime - enqueuedTime
+  }
+  
   constructor(options) {
     super(options)
 
@@ -11,9 +16,7 @@ export default class MP2WASM extends BaseDecoder {
     this.module = options.wasmModule
 
     this.bufferSize = options.audioBufferSize || 128 * 1024
-    this.bufferMode = options.streaming
-      ? BitBuffer.MODE.EVICT
-      : BitBuffer.MODE.EXPAND
+    this.bufferMode = options.streaming ? BitBuffer.MODE.EVICT : BitBuffer.MODE.EXPAND
 
     this.sampleRate = 0
   }
@@ -25,10 +28,7 @@ export default class MP2WASM extends BaseDecoder {
     }
     this.instance = this.module.instance
     this.functions = this.module.instance.exports
-    this.decoder = this.functions._mp2_decoder_create(
-      this.bufferSize,
-      this.bufferMode
-    )
+    this.decoder = this.functions._mp2_decoder_create(this.bufferSize, this.bufferMode)
   }
 
   destroy() {
@@ -62,10 +62,7 @@ export default class MP2WASM extends BaseDecoder {
       totalLength += buffers[i].length
     }
 
-    let ptr = this.functions._mp2_decoder_get_write_ptr(
-      this.decoder,
-      totalLength
-    )
+    let ptr = this.functions._mp2_decoder_get_write_ptr(this.decoder, totalLength)
     for (let i = 0; i < buffers.length; i++) {
       this.instance.heapU8.set(buffers[i], ptr)
       ptr += buffers[i].length
@@ -88,31 +85,19 @@ export default class MP2WASM extends BaseDecoder {
     }
 
     if (!this.sampleRate) {
-      this.sampleRate = this.functions._mp2_decoder_get_sample_rate(
-        this.decoder
-      )
+      this.sampleRate = this.functions._mp2_decoder_get_sample_rate(this.decoder)
     }
 
     if (this.destination) {
       // Create a Float32 View into the modules output channel data
-      let leftPtr = this.functions._mp2_decoder_get_left_channel_ptr(
-          this.decoder
-        ),
-        rightPtr = this.functions._mp2_decoder_get_right_channel_ptr(
-          this.decoder
-        )
+      let leftPtr = this.functions._mp2_decoder_get_left_channel_ptr(this.decoder),
+        rightPtr = this.functions._mp2_decoder_get_right_channel_ptr(this.decoder)
 
       let leftOffset = leftPtr / Float32Array.BYTES_PER_ELEMENT,
         rightOffset = rightPtr / Float32Array.BYTES_PER_ELEMENT
 
-      let left = this.instance.heapF32.subarray(
-          leftOffset,
-          leftOffset + MP2WASM.SAMPLES_PER_FRAME
-        ),
-        right = this.instance.heapF32.subarray(
-          rightOffset,
-          rightOffset + MP2WASM.SAMPLES_PER_FRAME
-        )
+      let left = this.instance.heapF32.subarray(leftOffset, leftOffset + MP2WASM.SAMPLES_PER_FRAME),
+        right = this.instance.heapF32.subarray(rightOffset, rightOffset + MP2WASM.SAMPLES_PER_FRAME)
 
       this.destination.play(this.sampleRate, left, right)
     }
@@ -124,11 +109,6 @@ export default class MP2WASM extends BaseDecoder {
     this.eventBus?.emit('audio-decode', this, elapsedTime)
 
     return true
-  }
-
-  getCurrentTime() {
-    let enqueuedTime = this.destination ? this.destination.enqueuedTime : 0
-    return this.decodedTime - enqueuedTime
   }
 
   static SAMPLES_PER_FRAME = 1152

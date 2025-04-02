@@ -1,12 +1,12 @@
 import { Fill, Now } from '../../utils'
 import BitBuffer from '../buffer'
-import BaseDecoder from './decoder'
+import Decoder from './decoder'
 
 /**
  * Inspired by Java MPEG-1 Video Decoder and Player by Zoltan Korandi
  * https://sourceforge.net/projects/javampeg1video/
  */
-export default class MPEG1 extends BaseDecoder {
+export default class MPEG1 extends Decoder {
   /**
    * @type {boolean}
    * 是否有序列头

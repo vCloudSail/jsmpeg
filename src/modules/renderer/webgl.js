@@ -1,23 +1,10 @@
-import { Now, delayCalculator } from '../../utils'
+import Renderer from './renderer'
 
-export default class WebGLRenderer {
-  /** @type {HTMLCanvasElement} */
-  canvas
+export default class WebGLRenderer extends Renderer {
   /** @type {WebGLRenderingContext} */
   gl
-  /** @type {boolean} */
-  ownsCanvasElement
   constructor(options) {
-    if (options.canvas) {
-      this.canvas = options.canvas
-      this.ownsCanvasElement = false
-    } else {
-      this.canvas = document.createElement('canvas')
-      this.ownsCanvasElement = true
-    }
-    this.width = this.canvas.width
-    this.height = this.canvas.height
-    this.enabled = true
+    super(options)
 
     this.hasTextureData = {}
 
@@ -101,7 +88,7 @@ export default class WebGLRenderer {
       return
     }
 
-    let gl = this.gl
+    const gl = this.gl
 
     this.deleteTexture(gl.TEXTURE0, this.textureY)
     this.deleteTexture(gl.TEXTURE1, this.textureCb)
@@ -116,12 +103,14 @@ export default class WebGLRenderer {
 
     this.canvas.removeEventListener('webglcontextlost', this.handleContextLostBound, false)
     this.canvas.removeEventListener('webglcontextrestored', this.handleContextRestoredBound, false)
-    // gl.getExtension('WEBGL_lose_context')?.loseContext()
-    // gl.clear()
 
-    if (removeCanvas && this.ownsCanvasElement) {
-      this.canvas.remove()
+    const WEBGL_lose_context = gl.getExtension('WEBGL_lose_context')
+    if (WEBGL_lose_context) {
+      WEBGL_lose_context?.loseContext()
     }
+    gl.clear()
+
+    super.destroy(removeCanvas)
   }
 
   clear() {
@@ -131,11 +120,7 @@ export default class WebGLRenderer {
   }
 
   resize(width, height) {
-    this.width = width | 0
-    this.height = height | 0
-
-    this.canvas.width = this.width
-    this.canvas.height = this.height
+    super.resize(width, height)
 
     this.gl.useProgram(this.program)
 
@@ -230,7 +215,7 @@ export default class WebGLRenderer {
 
     gl.drawArrays(gl.TRIANGLE_STRIP, 0, 4)
 
-    // delayCalculator.start() 
+    super.onRender()
   }
 
   updateTexture(unit, texture, w, h, data) {

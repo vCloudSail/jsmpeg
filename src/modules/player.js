@@ -88,30 +88,61 @@ export default class Player {
   /** 是否正在播放 */
   isPlaying = false
   /** @type {number} */
-  currentTime
-  /** @type {number} */
   volume
+  firstStartTime
   get delay() {
-    if (!this.demuxer.currentTime || !this.startTime) {
+    if (!this.isPlaying || !this.firstStartTime) {
       return -1
     }
-    return this.demuxer.currentTime - (Now() - this.startTime)
+    // console.log('wx', this.demuxer.pesPacketInfo, this.video.frameRate)
+    console.log('this.video.currentTime', this.video.currentTime)
+    const now = Now('ms')
+    const realTimestamp = Math.round(this.currentTime * 1000)
+    const localTimestamp = Math.round(now - this.startTime * 1000)
+    console.log('this.video.currentTime', this.video.currentTime, realTimestamp, localTimestamp)
+    return realTimestamp - localTimestamp
   }
+
+  /** @type {number} */
+  get currentTime() {
+    return this.video.currentTime - this.video.startTime
+    // return this.audio && this.audio.canPlay ? this.audio.currentTime - this.audio.startTime : this.video.currentTime - this.video.startTime
+  }
+  /**
+   * 设置当前时间
+   * @param {number} volume
+   */
+  set currentTime(time) {
+    this.seek(time)
+  }
+
+  /**
+   * 获取当前音量
+   * @returns
+   */
+  get volume() {
+    return this.audioOut ? this.audioOut.volume : 0
+  }
+  /**
+   * 设置当前音量
+   * @param {number} volume
+   */
+  set volume(volume) {
+    if (this.audioOut) {
+      this.audioOut.volume = volume
+    }
+  }
+
   /**
    *
    * @param {string} url
    * @param {import('../types').PlayerOptions} options
    */
   constructor(url, options = {}) {
-    Object.defineProperty(this, 'currentTime', {
-      get: this.getCurrentTime,
-      set: this.setCurrentTime
-    })
-    Object.defineProperty(this, 'volume', {
-      get: this.getVolume,
-      set: this.setVolume
-    })
     this.init(url, options)
+    this.once('video-decode', () => {
+      this.firstStartTime = Now('ms')
+    })
   }
   /**
    *
@@ -463,23 +494,6 @@ export default class Player {
   }
 
   /**
-   * 获取当前音量
-   * @returns
-   */
-  getVolume() {
-    return this.audioOut ? this.audioOut.volume : 0
-  }
-
-  /**
-   * 设置当前音量
-   * @param {number} volume
-   */
-  setVolume(volume) {
-    if (this.audioOut) {
-      this.audioOut.volume = volume
-    }
-  }
-  /**
    * 播放
    * @author cloudsail
    * @returns
@@ -540,8 +554,14 @@ export default class Player {
   }
 
   stop(clear = true) {
+    // this.currentTime = 0
+    // this.video.startTime = 0
+    // this.audio.startTime = 0
+    // this.demuxer.startTime = 0
+
     this.pause()
     this.seek(0)
+
     if (this.video && this.options.decodeFirstFrame !== false) {
       this.video.decode()
     }
@@ -583,15 +603,6 @@ export default class Player {
     }
 
     this.startTime = Now() - time
-  }
-
-  getCurrentTime() {
-    return this.video.currentTime - this.video.startTime
-    // return this.audio && this.audio.canPlay ? this.audio.currentTime - this.audio.startTime : this.video.currentTime - this.video.startTime
-  }
-
-  setCurrentTime(time) {
-    this.seek(time)
   }
 
   update() {
@@ -730,28 +741,24 @@ export default class Player {
 
     this.options.onSourceConnected?.(this)
   }
-  handleSourceEstablished() {
+  handleSourceEstablished(...arg) {
     if (this.store.isBackground) {
       this.source.pause()
     } else if (this.paused) {
       this.play()
     }
-    this.options.onSourceEstablished?.(this)
+    this.options.onSourceEstablished?.apply(arg)
   }
-  handleSourceStreamInterrupt() {
-    if (this.options.onSourceStreamInterrupt) {
-      this.options.onSourceStreamInterrupt(this)
-    }
+  handleSourceStreamInterrupt(...arg) {
+    this.options.onSourceStreamInterrupt?.apply(arg)
   }
-  handleSourceClosed() {
+  handleSourceClosed(...arg) {
     this.pause()
     if (this.isRecording) {
       this.recorder.pause()
     }
 
-    if (this.options.onSourceClosed) {
-      this.options.onSourceClosed(this)
-    }
+    this.options.onSourceClosed(this)?.apply(arg)
   }
 
   onVisibilityChange = (ev) => {

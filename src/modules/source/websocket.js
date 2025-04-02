@@ -1,6 +1,6 @@
 'use strict'
 import TS from '../demuxer/ts'
-import { Now, delayCalculator } from '../../utils'
+import { Now, getCalculationRateFn } from '../../utils'
 
 const defaultOptions = {
   // 表示多久没收到视频流
@@ -8,6 +8,10 @@ const defaultOptions = {
   maxReconnectCount: 10
 }
 export default class WSSource {
+  /**
+   * 传输速率(KB/s)
+   */
+  kBps
   timer = {
     heartbeat: null,
     streamInterrupt: null
@@ -57,6 +61,12 @@ export default class WSSource {
     this.onConnectedCallback = options.onSourceConnected
     this.onStreamInterruptCallback = options.onSourceStreamInterrupt
     this.onStreamContinueCallback = options.onSourceStreamContinue
+
+    this.calcRate = getCalculationRateFn((rate) => {
+      this.kBps = Math.round(rate / 1024)
+      this.eventBus.emit('performance-kBps', this.kBps)
+      console.log('传输速率', (this.kBps / 1024).toFixed(2) + 'MB/s')
+    })
   }
 
   connect(destination) {
@@ -156,6 +166,8 @@ export default class WSSource {
         this.reconnectCount = 0
         this.socket.onmessage = this.onMessage.bind(this)
         this.startStreamTimeoutTimer()
+      } else if (this.socket?.readyState === WebSocket.CLOSED) {
+        this.wsConnect()
       }
     }
   }
@@ -180,6 +192,10 @@ export default class WSSource {
 
   onClose() {
     this.established = false
+
+    clearTimeout(this.reconnectTimeoutId)
+    let reconnectFn = this.wsConnect.bind(this)
+
     if (this.progress >= 1) {
       if (!this.isStreamInterrupt) {
         clearTimeout(this.timer.streamInterrupt)
@@ -192,15 +208,13 @@ export default class WSSource {
       this.onClosedCallback?.(this)
       this.eventBus?.emit('source-closed', this)
 
-      clearTimeout(this.reconnectTimeoutId)
-      this.reconnectTimeoutId = setTimeout(this.start.bind(this), this.reconnectInterval * 1000)
+      reconnectFn = this.start.bind(this)
       return
     }
 
-    if (this.shouldAttemptReconnect && this.reconnectCount < defaultOptions.maxReconnectCount) {
+    if (!this.isPaused && this.shouldAttemptReconnect && this.reconnectCount < defaultOptions.maxReconnectCount) {
       // 最多重连10次
-      clearTimeout(this.reconnectTimeoutId)
-      this.reconnectTimeoutId = setTimeout(this.wsConnect.bind(this), this.reconnectInterval * 1000)
+      this.reconnectTimeoutId = setTimeout(reconnectFn, this.reconnectInterval * 1000)
       this.reconnectCount += 1
       console.log('websocket 重连次数： ', this.reconnectCount)
     }
@@ -212,6 +226,7 @@ export default class WSSource {
    */
   onMessage(ev) {
     // delayCalculator.start()
+    this.calcRate?.(ev.data?.byteLength)
 
     this.startStreamTimeoutTimer()
     try {

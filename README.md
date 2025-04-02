@@ -95,8 +95,8 @@ var player = new JSMpeg.Player('video.ts' {loop: true, autoplay: true});
 | 名称 | 原生回调名称 | 参数 | 说明 |
 | ---- | ------------ | ---- | ---- |
 | **原生事件**       |                         | -                        | -                                                                                                |
-| video-decode       | [onVideoDecode]()       | decoder, time            | 视频帧解码事件，当成功解码视频帧时触发                                                           |
-| audio-decode       | [onAudioDecode]()       | decoder, time            | 音频帧解码事件，当成功解码音频帧时触发                                                           |
+| video-decode       | [onVideoDecode]()       | decoder, elapsedTime            | 视频帧解码事件，当成功解码视频帧时触发                                                           |
+| audio-decode       | [onAudioDecode]()       | decoder, elapsedTime            | 音频帧解码事件，当成功解码音频帧时触发                                                           |
 | play               | [onPlay]()              | player                   | 播放开始事件                                                                                     |
 | pause              | [onPause]()             | player                   | 播放暂停事件                                                                                     |
 | ended              | [onEnded]()             | player                   | 播放结束事件                                                                                     |

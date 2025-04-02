@@ -11,9 +11,9 @@ export interface PlayerOptions {
   video?: boolean
   /** 海报图像的URL，用来在视频播放之前作为海报显示。 */
   poster?: string
-  /** 
-   * 是否自动暂停播放（标签进入后台）。默认true 
-   * 
+  /**
+   * 是否自动暂停播放（标签进入后台）。默认true
+   *
    * 注意，浏览器通常会在非活动标签中限制JS。
    */
   pauseWhenHidden?: boolean
@@ -38,9 +38,9 @@ export interface PlayerOptions {
   /** 流媒体时，音频解码缓冲区的字节大小。默认的128 * 1024 (128 kb)。对于非常高的比特率，您可能需要增加此值。 */
   audioBufferSize?: string
   /** 在每个解码和渲染视频帧后调用的回调 */
-  onVideoDecode?: (decoder, time: number) => void
+  onVideoDecode?: (decoder, elapsedTime: number) => void
   /** 在每个解码音频帧之后调用的回调函数 */
-  onAudioDecode?: (decoder, time: number) => void
+  onAudioDecode?: (decoder, elapsedTime: number) => void
   /** 每当播放开始时调用的回调 */
   onPlay?: (player: Player) => void
   /** 当回放暂停时(例如.pause()被调用或源程序结束时)调用的回调函数。 */

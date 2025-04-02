@@ -108,16 +108,38 @@ export function formatTimestamp(timestamp, showMs) {
   return result
 }
 
-export const delayCalculator = {
+/**
+ * 计算速率
+ * @param {*} callback
+ * @returns
+ */
+export function getCalculationRateFn(callback) {
+  let totalSize = 0
+  let lastTime = Now('ms')
+  return (size) => {
+    totalSize += size
+    const thisTime = Now('ms')
+    const diffTime = thisTime - lastTime
+    if (diffTime >= 1000) {
+      callback((totalSize / diffTime) * 1000)
+      lastTime = thisTime
+      totalSize = 0
+    }
+  }
+}
+
+export const performanceStats = {
   startTime: 0,
-  start() {
+  stats: {},
+
+  start(name) {
     if (this.startTime) {
       return
     }
 
     this.startTime = Now('ms')
   },
-  end() {
+  end(name) {
     this.value = Now('ms') - this.startTime
     this.startTime = 0
     console.log('延迟时间', this.value)

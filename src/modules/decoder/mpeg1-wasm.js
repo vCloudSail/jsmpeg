@@ -1,8 +1,8 @@
 import { Now } from '../../utils'
 import BitBuffer from '../buffer'
-import BaseDecoder from './decoder'
+import Decoder from './decoder'
 
-export default class MPEG1WASM extends BaseDecoder {
+export default class MPEG1WASM extends Decoder {
   options = null
   /** 分辨率 */
   resolution = {
@@ -148,6 +148,7 @@ export default class MPEG1WASM extends BaseDecoder {
       )
 
       this.destination.render(dy, dcr, dcb, false)
+      
     }
 
     this.advanceDecodedTime(1 / this.frameRate)
